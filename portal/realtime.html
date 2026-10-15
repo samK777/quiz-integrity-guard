@@ -1,0 +1,2436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Exam Monitoring System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --accent-color: #ec4899;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            --gradient-success: linear-gradient(135deg, var(--success-color), #059669);
+            --gradient-warning: linear-gradient(135deg, var(--warning-color), #d97706);
+            --gradient-error: linear-gradient(135deg, var(--error-color), #dc2626);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* App Container */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 18px;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .nav-item.active .nav-icon {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar.collapsed .nav-text {
+            display: none;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+        }
+
+        .user-details .user-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-details .user-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--gradient-warning);
+            color: white;
+        }
+
+        .btn-error {
+            background: var(--gradient-error);
+            color: white;
+        }
+
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .stat-icon.primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .stat-icon.success {
+            background: var(--gradient-success);
+            color: white;
+        }
+
+        .stat-icon.warning {
+            background: var(--gradient-warning);
+            color: white;
+        }
+
+        .stat-icon.error {
+            background: var(--gradient-error);
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        /* Quiz Cards */
+        .quiz-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .quiz-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .quiz-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .quiz-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .quiz-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .quiz-description {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .quiz-meta {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .quiz-tag {
+            font-size: 12px;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+        }
+
+        /* Students Grid */
+        .students-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .student-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .student-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .student-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .student-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+        }
+
+        .student-details .student-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .student-details .student-status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .student-stats {
+            display: flex;
+            gap: 16px;
+        }
+
+        .student-stat {
+            text-align: center;
+        }
+
+        .student-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .student-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .student-stat.violations .student-stat-value {
+            color: var(--warning-color);
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            display: grid;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-text {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Quiz Modal */
+        .quiz-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .quiz-modal.active {
+            display: flex;
+        }
+
+        .quiz-container {
+            background: var(--dark-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .quiz-header {
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+        }
+
+        .quiz-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .quiz-info {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .question-counter {
+            color: var(--text-secondary);
+        }
+
+        .timer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+        }
+
+        .violation-counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            color: var(--error-color);
+            font-weight: 600;
+        }
+
+        .quiz-main {
+            flex: 1;
+            display: flex;
+            padding: 24px;
+            gap: 24px;
+        }
+
+        .question-palette {
+            width: 200px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .palette-header {
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .palette-item {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .palette-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .palette-item.answered {
+            background: var(--gradient-primary);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .palette-item.current {
+            background: var(--gradient-success);
+            color: white;
+            border-color: var(--success-color);
+            transform: scale(1.1);
+        }
+
+        .question-area {
+            flex: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-primary);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 10%;
+        }
+
+        .question-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .question-text {
+            font-size: 20px;
+            font-weight: 600;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .option-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--primary-color);
+        }
+
+        .option-item.selected {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .option-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .option-item.selected .option-indicator {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .option-item.selected .option-indicator::after {
+            content: '!';
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .option-text {
+            flex: 1;
+            color: var(--text-primary);
+        }
+
+        .question-controls {
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+            margin-top: 32px;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .toast.success .toast-icon {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .toast.warning .toast-icon {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .toast.error .toast-icon {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .toast.info .toast-icon {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* Violation Warning */
+        .violation-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .violation-warning.show {
+            display: flex;
+        }
+
+        .warning-content {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--error-color);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .violation-warning.show .warning-content {
+            transform: scale(1);
+        }
+
+        .warning-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--gradient-error);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            margin: 0 auto 16px;
+        }
+
+        .warning-text h4 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .warning-text p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .warning-strike {
+            font-size: 14px;
+            color: var(--error-color);
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        /* Live Indicator */
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--success-color);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--card-border);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                z-index: 100;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.active {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .quiz-main {
+                flex-direction: column;
+            }
+            
+            .question-palette {
+                width: 100%;
+                order: 2;
+            }
+            
+            .question-area {
+                order: 1;
+            }
+            
+            .palette-grid {
+                grid-template-columns: repeat(10, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">Q</div>
+                <div class="logo-text">QuizGuard</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item active" data-page="dashboard">
+                    <div class="nav-icon">D</div>
+                    <span class="nav-text">Dashboard</span>
+                </div>
+                <div class="nav-item" data-page="quizzes">
+                    <div class="nav-icon">Q</div>
+                    <span class="nav-text">Quizzes</span>
+                </div>
+                <div class="nav-item" data-page="students">
+                    <div class="nav-icon">S</div>
+                    <span class="nav-text">Students</span>
+                </div>
+                <div class="nav-item" data-page="monitoring">
+                    <div class="nav-icon">M</div>
+                    <span class="nav-text">Monitoring</span>
+                </div>
+                <div class="nav-item" data-page="reports">
+                    <div class="nav-icon">R</div>
+                    <span class="nav-text">Reports</span>
+                </div>
+                <div class="nav-item" data-page="settings">
+                    <div class="nav-icon">S</div>
+                    <span class="nav-text">Settings</span>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <div class="user-info">
+                        <div class="user-avatar" id="userAvatar">S</div>
+                        <div class="user-details">
+                            <div class="user-name" id="userName">Student</div>
+                            <div class="user-role" id="userRole">Student</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-secondary" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="switchRole()">
+                        <i class="fas fa-exchange-alt"></i>
+                        Switch Role
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area" id="contentArea">
+                <!-- Loading State -->
+                <div id="loadingState" class="loading">
+                    <div class="loading-spinner"></div>
+                    <span>Connecting to Firebase...</span>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div id="dashboardContent" style="display: none;">
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon primary">Q</div>
+                            </div>
+                            <div class="stat-value" id="totalQuizzes">0</div>
+                            <div class="stat-label">Total Quizzes</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon success">A</div>
+                            </div>
+                            <div class="stat-value" id="attemptsCount">0</div>
+                            <div class="stat-label">Total Attempts</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon warning">V</div>
+                            </div>
+                            <div class="stat-value" id="violationsCount">0</div>
+                            <div class="stat-label">Violations Today</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-icon error">S</div>
+                            </div>
+                            <div class="stat-value" id="avgScore">0%</div>
+                            <div class="stat-label">Average Score</div>
+                        </div>
+                    </div>
+
+                    <!-- Student View: Available Quizzes -->
+                    <div id="studentView" class="section">
+                        <div class="section-header">
+                            <h2 class="section-title">Available Quizzes</h2>
+                            <button class="btn btn-primary" onclick="refreshQuizzes()">
+                                <i class="fas fa-sync"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="quiz-grid" id="quizGrid">
+                            <!-- Quizzes will be populated from Firebase -->
+                        </div>
+                    </div>
+
+                    <!-- Teacher View: Live Monitoring -->
+                    <div id="teacherView" class="section" style="display: none;">
+                        <div class="section-header">
+                            <h2 class="section-title">Live Quiz Monitoring</h2>
+                            <div class="live-indicator">
+                                <div class="live-dot"></div>
+                                <span>Live</span>
+                            </div>
+                        </div>
+                        
+                        <div class="students-grid" id="studentsGrid">
+                            <!-- Students will be populated from Firebase -->
+                        </div>
+                    </div>
+
+                    <!-- Activity Feed -->
+                    <div class="section">
+                        <div class="section-header">
+                            <h2 class="section-title">Live Activity Feed</h2>
+                            <button class="btn btn-secondary" onclick="clearActivity()">
+                                <i class="fas fa-trash"></i>
+                                Clear
+                            </button>
+                        </div>
+                        <div class="activity-feed" id="activityFeed">
+                            <!-- Activity will be populated from Firebase -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div class="quiz-modal" id="quizModal">
+        <div class="quiz-container">
+            <div class="quiz-header">
+                <div class="quiz-title" id="quizTitle">Quiz</div>
+                <div class="quiz-info">
+                    <span class="question-counter">Question <span id="currentQuestion">1</span> of <span id="totalQuestions">10</span></span>
+                    <span class="timer">
+                        <i class="fas fa-clock"></i>
+                        <span id="timeRemaining">15:00</span>
+                    </span>
+                    <div class="violation-counter">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="violationCount">0</span> / 3 Violations
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="closeQuiz()">
+                    <i class="fas fa-times"></i>
+                    Exit
+                </button>
+            </div>
+            
+            <div class="quiz-main">
+                <div class="question-palette">
+                    <div class="palette-header">Questions</div>
+                    <div class="palette-grid" id="questionPalette">
+                        <!-- Question numbers will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="question-area">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    
+                    <div class="question-content" id="questionContent">
+                        <!-- Questions will be populated here -->
+                    </div>
+                    
+                    <div class="question-controls">
+                        <button class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()">
+                            <i class="fas fa-arrow-left"></i>
+                            Previous
+                        </button>
+                        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">
+                            Next
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button class="btn btn-success" id="submitBtn" onclick="submitQuiz()" style="display: none;">
+                            <i class="fas fa-check"></i>
+                            Submit Quiz
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Violation Warning -->
+    <div class="violation-warning" id="violationWarning">
+        <div class="warning-content">
+            <div class="warning-icon">!</div>
+            <div class="warning-text">
+                <h4>Violation Detected!</h4>
+                <p id="violationMessage">Tab switching detected</p>
+                <div class="warning-strike">
+                    Strike <span id="currentStrike">1</span> of 3
+                </div>
+            </div>
+            <button class="btn btn-warning" onclick="closeViolationWarning()">I Understand</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    
+    <!-- Main Application Script -->
+    <script>
+        // ========================================
+        // REAL-TIME EXAM MONITORING SYSTEM
+        // ========================================
+
+        // Application State
+        const AppState = {
+            currentUser: null,
+            currentRole: 'student', // 'student' or 'teacher'
+            currentPage: 'dashboard',
+            quizInProgress: false,
+            monitoringActive: false,
+            realtimeListeners: []
+        };
+
+        // Quiz State
+        const QuizState = {
+            currentQuestion: 0,
+            answers: [],
+            violations: [],
+            violationCount: 0,
+            maxViolations: 3,
+            startTime: null,
+            endTime: null,
+            quizId: null,
+            attemptId: null,
+            timer: null,
+            timeRemaining: 900,
+            isSubmitted: false,
+            isAutoSubmitted: false,
+            wasInFullscreen: false
+        };
+
+        // Quiz Data
+        const quizData = {
+            physics_basic_001: {
+                id: 'physics_basic_001',
+                title: 'Basic Physics Quiz',
+                duration: 900, // 15 minutes
+                questions: [
+                    {
+                        id: 1,
+                        question: "What is the SI unit of force?",
+                        options: ["Newton", "Joule", "Watt", "Pascal"],
+                        correctAnswer: 0
+                    },
+                    {
+                        id: 2,
+                        question: "Which of the following is a vector quantity?",
+                        options: ["Temperature", "Mass", "Velocity", "Energy"],
+                        correctAnswer: 2
+                    },
+                    {
+                        id: 3,
+                        question: "What is the acceleration due to gravity on Earth?",
+                        options: ["8.9 m/s²", "9.8 m/s²", "10.8 m/s²", "11.8 m/s²"],
+                        correctAnswer: 1
+                    },
+                    {
+                        id: 4,
+                        question: "Which law states that for every action there is an equal and opposite reaction?",
+                        options: ["Newton's First Law", "Newton's Second Law", "Newton's Third Law", "Law of Conservation of Energy"],
+                        correctAnswer: 2
+                    },
+                    {
+                        id: 5,
+                        question: "What is the formula for kinetic energy?",
+                        options: ["mgh", "1/2 mv²", "mv", "ma"],
+                        correctAnswer: 1
+                    },
+                    {
+                        id: 6,
+                        question: "Which of the following is not a fundamental unit?",
+                        options: ["Meter", "Kilogram", "Second", "Newton"],
+                        correctAnswer: 3
+                    },
+                    {
+                        id: 7,
+                        question: "What is the unit of power?",
+                        options: ["Joule", "Watt", "Newton", "Pascal"],
+                        correctAnswer: 1
+                    },
+                    {
+                        id: 8,
+                        question: "Which type of energy is stored in a compressed spring?",
+                        options: ["Kinetic Energy", "Potential Energy", "Thermal Energy", "Electrical Energy"],
+                        correctAnswer: 1
+                    },
+                    {
+                        id: 9,
+                        question: "What is the speed of light in vacuum?",
+                        options: ["3×10^6 m/s", "3×10^7 m/s", "3×10^8 m/s", "3×10^9 m/s"],
+                        correctAnswer: 2
+                    },
+                    {
+                        id: 10,
+                        question: "Which principle explains why ships float?",
+                        options: ["Pascal's Principle", "Archimedes' Principle", "Bernoulli's Principle", "Newton's Principle"],
+                        correctAnswer: 1
+                    }
+                ]
+            }
+        };
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            console.log('Initializing Real-Time Exam Monitoring System...');
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined' || !auth) {
+                console.log('Firebase not available, using demo mode');
+                // Create demo user for testing
+                AppState.currentUser = {
+                    uid: 'demo_user_' + Date.now(),
+                    email: 'demo@example.com',
+                    displayName: 'Demo User'
+                };
+                AppState.demoMode = true;
+                await loadDashboard();
+                return;
+            }
+            
+            // Check authentication state
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    AppState.currentUser = user;
+                    AppState.demoMode = false;
+                    console.log('User authenticated:', user.email);
+                    await loadDashboard();
+                } else {
+                    console.log('No user authenticated, using demo mode');
+                    // Create demo user for testing
+                    AppState.currentUser = {
+                        uid: 'demo_user_' + Date.now(),
+                        email: 'demo@example.com',
+                        displayName: 'Demo User'
+                    };
+                    AppState.demoMode = true;
+                    await loadDashboard();
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            // Navigation items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const page = this.dataset.page;
+                    navigateToPage(page);
+                });
+            });
+        }
+
+        function navigateToPage(page) {
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-page="${page}"]`).classList.add('active');
+            
+            // Update page title
+            const titles = {
+                dashboard: 'Dashboard',
+                quizzes: 'Quizzes',
+                students: 'Students',
+                monitoring: 'Monitoring',
+                reports: 'Reports',
+                settings: 'Settings'
+            };
+            document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
+            
+            AppState.currentPage = page;
+        }
+
+        async function loadDashboard() {
+            // Hide loading, show content
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            
+            // Update user info
+            updateUserInterface();
+            
+            // Setup real-time listeners (only if not in demo mode)
+            if (!AppState.demoMode) {
+                setupRealtimeListeners();
+            } else {
+                console.log('Demo mode active - skipping real-time listeners');
+            }
+            
+            // Load initial data
+            await loadInitialData();
+            
+            console.log('Dashboard loaded successfully');
+        }
+
+        function updateUserInterface() {
+            const user = AppState.currentUser;
+            const userAvatar = document.getElementById('userAvatar');
+            const userName = document.getElementById('userName');
+            const userRole = document.getElementById('userRole');
+            
+            if (user) {
+                const initials = (user.displayName || user.email || 'User').charAt(0).toUpperCase();
+                userAvatar.textContent = initials;
+                userName.textContent = user.displayName || user.email || 'User';
+                userRole.textContent = AppState.currentRole.charAt(0).toUpperCase() + AppState.currentRole.slice(1);
+            }
+        }
+
+        function setupRealtimeListeners() {
+            // Clear existing listeners
+            AppState.realtimeListeners.forEach(unsubscribe => unsubscribe());
+            AppState.realtimeListeners = [];
+            
+            if (AppState.currentRole === 'teacher') {
+                setupTeacherListeners();
+            } else {
+                setupStudentListeners();
+            }
+        }
+
+        function setupTeacherListeners() {
+            // Listen for active attempts
+            const attemptsListener = db.collection('attempts')
+                .where('status', '==', 'active')
+                .onSnapshot((snapshot) => {
+                    updateLiveStudents(snapshot.docs);
+                    updateStats();
+                });
+            
+            // Listen for violations
+            const violationsListener = db.collection('violations')
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .onSnapshot((snapshot) => {
+                    updateActivityFeed(snapshot.docs);
+                });
+            
+            // Listen for all attempts for stats
+            const allAttemptsListener = db.collection('attempts')
+                .onSnapshot((snapshot) => {
+                    updateStats();
+                });
+            
+            AppState.realtimeListeners.push(attemptsListener, violationsListener, allAttemptsListener);
+        }
+
+        function setupStudentListeners() {
+            // Students don't need special listeners for now
+            // They will interact directly with their own attempt
+        }
+
+        async function loadInitialData() {
+            if (AppState.currentRole === 'teacher') {
+                await loadTeacherData();
+            } else {
+                await loadStudentData();
+            }
+        }
+
+        async function loadTeacherData() {
+            // Load quizzes
+            await loadQuizzes();
+            
+            // Load live students
+            const attemptsSnapshot = await db.collection('attempts')
+                .where('status', '==', 'active')
+                .get();
+            updateLiveStudents(attemptsSnapshot.docs);
+            
+            // Load activity
+            const violationsSnapshot = await db.collection('violations')
+                .orderBy('timestamp', 'desc')
+                .limit(20)
+                .get();
+            updateActivityFeed(violationsSnapshot.docs);
+            
+            // Load stats
+            await updateStats();
+        }
+
+        async function loadStudentData() {
+            // Load available quizzes
+            await loadQuizzes();
+            
+            // Load student's attempt history
+            const attemptsSnapshot = await db.collection('attempts')
+                .where('userId', '==', AppState.currentUser.uid)
+                .orderBy('startTime', 'desc')
+                .get();
+            updateStudentAttempts(attemptsSnapshot.docs);
+        }
+
+        async function loadQuizzes() {
+            const quizGrid = document.getElementById('quizGrid');
+            
+            // For demo, show the physics quiz
+            const quizzes = Object.values(quizData);
+            
+            quizGrid.innerHTML = quizzes.map(quiz => `
+                <div class="quiz-card" onclick="startQuiz('${quiz.id}')">
+                    <div class="quiz-icon">${quiz.title.charAt(0)}</div>
+                    <h3 class="quiz-title">${quiz.title}</h3>
+                    <p class="quiz-description">Test your knowledge with ${quiz.questions.length} questions.</p>
+                    <div class="quiz-meta">
+                        <span class="quiz-tag">${quiz.questions.length} Questions</span>
+                        <span class="quiz-tag">${Math.floor(quiz.duration / 60)} Minutes</span>
+                        <span class="quiz-tag">Interactive</span>
+                    </div>
+                    <button class="btn btn-primary">Start Quiz</button>
+                </div>
+            `).join('');
+        }
+
+        function updateLiveStudents(attempts) {
+            const studentsGrid = document.getElementById('studentsGrid');
+            
+            if (attempts.length === 0) {
+                studentsGrid.innerHTML = '<div class="loading">No active students at the moment.</div>';
+                return;
+            }
+            
+            studentsGrid.innerHTML = attempts.map(doc => {
+                const data = doc.data();
+                const initials = data.userName ? data.userName.charAt(0).toUpperCase() : 'S';
+                const currentQ = data.currentQuestion ? data.currentQuestion + 1 : 1;
+                const totalQ = data.answers ? data.answers.length : 10;
+                const answered = data.answers ? data.answers.filter(a => a !== null).length : 0;
+                
+                return `
+                    <div class="student-card">
+                        <div class="student-info">
+                            <div class="student-avatar">${initials}</div>
+                            <div class="student-details">
+                                <div class="student-name">${data.userName || 'Student'}</div>
+                                <div class="student-status">Question ${currentQ} of ${totalQ}</div>
+                            </div>
+                        </div>
+                        <div class="student-stats">
+                            <div class="student-stat">
+                                <div class="student-stat-value">${answered}/${totalQ}</div>
+                                <div class="student-stat-label">Answered</div>
+                            </div>
+                            <div class="student-stat ${data.violationCount > 0 ? 'violations' : ''}">
+                                <div class="student-stat-value">${data.violationCount || 0}</div>
+                                <div class="student-stat-label">Violations</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateActivityFeed(violations) {
+            const activityFeed = document.getElementById('activityFeed');
+            
+            if (violations.length === 0) {
+                activityFeed.innerHTML = '<div class="loading">No recent activity.</div>';
+                return;
+            }
+            
+            activityFeed.innerHTML = violations.map(doc => {
+                const violation = doc.data();
+                const timeAgo = getTimeAgo(violation.timestamp.toDate());
+                const questionNum = violation.questionNumber || 'Unknown';
+                
+                return `
+                    <div class="activity-item">
+                        <div class="activity-icon">!</div>
+                        <div class="activity-content">
+                            <div class="activity-text">${getViolationMessage(violation)} at Q${questionNum}</div>
+                            <div class="activity-time">${timeAgo}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function updateStats() {
+            try {
+                // Get all attempts for stats
+                const attemptsSnapshot = await db.collection('attempts').get();
+                const attempts = attemptsSnapshot.docs;
+                
+                // Get today's violations
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const violationsSnapshot = await db.collection('violations')
+                    .where('timestamp', '>=', today)
+                    .get();
+                
+                // Calculate stats
+                const totalQuizzes = Object.keys(quizData).length;
+                const totalAttempts = attempts.length;
+                const violationsToday = violationsSnapshot.docs.length;
+                
+                // Calculate average score from completed attempts
+                const completedAttempts = attempts.filter(doc => {
+                    const data = doc.data();
+                    return data.status === 'completed' && data.percentage !== undefined;
+                });
+                
+                const avgScore = completedAttempts.length > 0 
+                    ? Math.round(completedAttempts.reduce((sum, doc) => sum + doc.data().percentage, 0) / completedAttempts.length)
+                    : 0;
+                
+                // Update UI
+                document.getElementById('totalQuizzes').textContent = totalQuizzes;
+                document.getElementById('attemptsCount').textContent = totalAttempts;
+                document.getElementById('violationsCount').textContent = violationsToday;
+                document.getElementById('avgScore').textContent = avgScore + '%';
+                
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        function updateStudentAttempts(attempts) {
+            // This would show student's attempt history
+            // For now, we'll focus on the live monitoring
+        }
+
+        function switchRole() {
+            AppState.currentRole = AppState.currentRole === 'student' ? 'teacher' : 'student';
+            updateUserInterface();
+            setupRealtimeListeners();
+            loadInitialData();
+            
+            // Show/hide appropriate views
+            const studentView = document.getElementById('studentView');
+            const teacherView = document.getElementById('teacherView');
+            
+            if (AppState.currentRole === 'student') {
+                studentView.style.display = 'block';
+                teacherView.style.display = 'none';
+            } else {
+                studentView.style.display = 'none';
+                teacherView.style.display = 'block';
+            }
+            
+            showToast(`Switched to ${AppState.currentRole} view`, 'info');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // ========================================
+        // QUIZ FUNCTIONS (REAL-TIME)
+        // ========================================
+
+        async function startQuiz(quizId) {
+            console.log('Starting quiz with ID:', quizId);
+            console.log('Current user:', AppState.currentUser);
+            console.log('Current role:', AppState.currentRole);
+            
+            if (AppState.currentRole !== 'student') {
+                showToast('Only students can take quizzes', 'warning');
+                return;
+            }
+            
+            const quiz = quizData[quizId];
+            if (!quiz) {
+                console.error('Quiz not found:', quizId);
+                showToast('Quiz not found', 'error');
+                return;
+            }
+            
+            console.log('Quiz found:', quiz);
+            
+            try {
+                // Show fullscreen recommendation modal
+                QuizState.wasInFullscreen = false;
+                if (!document.fullscreenElement) {
+                    const useFullscreen = confirm('For best security, we recommend using fullscreen mode. Would you like to enter fullscreen now?\n\nClick OK for fullscreen\nClick Cancel to continue in normal mode');
+                    if (useFullscreen) {
+                        console.log('User chose fullscreen');
+                        await requestFullscreen();
+                        QuizState.wasInFullscreen = true;
+                    } else {
+                        console.log('User chose normal mode');
+                        QuizState.wasInFullscreen = false;
+                    }
+                } else {
+                    console.log('Already in fullscreen mode');
+                    QuizState.wasInFullscreen = true;
+                }
+                
+                // Initialize quiz state
+                QuizState.quizId = quizId;
+                QuizState.currentQuestion = 0;
+                QuizState.answers = new Array(quiz.questions.length).fill(null);
+                QuizState.violations = [];
+                QuizState.violationCount = 0;
+                QuizState.startTime = new Date();
+                QuizState.timeRemaining = quiz.duration;
+                QuizState.isSubmitted = false;
+                QuizState.isAutoSubmitted = false;
+                
+                console.log('Quiz state initialized:', QuizState);
+                
+                // Create attempt in Firestore immediately
+                const attemptData = {
+                    userId: AppState.currentUser.uid,
+                    userName: AppState.currentUser.displayName || AppState.currentUser.email,
+                    quizId: quizId,
+                    currentQuestion: 0,
+                    answers: QuizState.answers,
+                    violationCount: 0,
+                    violations: [],
+                    status: 'active',
+                    startTime: QuizState.startTime,
+                    attemptNumber: 1 // Will be updated dynamically
+                };
+                
+                console.log('Creating attempt with data:', attemptData);
+                
+                // Check if Firebase is available
+                if (!db) {
+                    console.error('Firebase database not available');
+                    showToast('Firebase connection error', 'error');
+                    return;
+                }
+                
+                const docRef = await db.collection('attempts').add(attemptData);
+                QuizState.attemptId = docRef.id;
+                
+                console.log('Attempt created with ID:', QuizState.attemptId);
+                
+                // Show quiz modal
+                const quizModal = document.getElementById('quizModal');
+                if (quizModal) {
+                    quizModal.classList.add('active');
+                    document.getElementById('quizTitle').textContent = quiz.title;
+                    document.getElementById('totalQuestions').textContent = quiz.questions.length;
+                } else {
+                    console.error('Quiz modal not found');
+                }
+                
+                // Load first question
+                loadQuestion(0);
+                
+                // Initialize question palette
+                initializeQuestionPalette(quiz.questions.length);
+                
+                // Start timer
+                startTimer();
+                
+                // Start monitoring
+                startMonitoring();
+                
+                AppState.quizInProgress = true;
+                
+                showToast('Quiz started! All activity is now being monitored.', 'info');
+                console.log('Quiz started successfully');
+                
+            } catch (error) {
+                console.error('Error starting quiz:', error);
+                console.error('Error details:', error.message);
+                console.error('Error stack:', error.stack);
+                showToast('Failed to start quiz: ' + error.message, 'error');
+            }
+        }
+
+        function loadQuestion(index) {
+            const quiz = quizData[QuizState.quizId];
+            if (!quiz || index < 0 || index >= quiz.questions.length) return;
+            
+            QuizState.currentQuestion = index;
+            const question = quiz.questions[index];
+            
+            // Update question content
+            const questionContent = document.getElementById('questionContent');
+            questionContent.innerHTML = `
+                <div class="question-text">${question.question}</div>
+                <div class="options-list">
+                    ${question.options.map((option, i) => `
+                        <div class="option-item ${QuizState.answers[index] === i ? 'selected' : ''}" 
+                             onclick="selectOption(${i})" data-option="${i}">
+                            <div class="option-indicator">${String.fromCharCode(65 + i)}</div>
+                            <div class="option-text">${option}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Update progress
+            updateProgress();
+            
+            // Update question palette
+            updateQuestionPalette();
+            
+            // Update navigation buttons
+            updateNavigationButtons();
+            
+            // Update question counter
+            document.getElementById('currentQuestion').textContent = index + 1;
+            
+            // Update current question in Firestore (REAL-TIME)
+            updateCurrentQuestionInDB();
+        }
+
+        function selectOption(optionIndex) {
+            if (QuizState.isSubmitted) return;
+            
+            QuizState.answers[QuizState.currentQuestion] = optionIndex;
+            
+            // Update UI
+            const optionItems = document.querySelectorAll('.option-item');
+            optionItems.forEach(item => item.classList.remove('selected'));
+            document.querySelector(`[data-option="${optionIndex}"]`).classList.add('selected');
+            
+            // Update palette
+            updateQuestionPalette();
+            
+            // Update answer in Firestore (REAL-TIME)
+            updateAnswerInDB(QuizState.currentQuestion, optionIndex);
+        }
+
+        function nextQuestion() {
+            const quiz = quizData[QuizState.quizId];
+            if (QuizState.currentQuestion < quiz.questions.length - 1) {
+                loadQuestion(QuizState.currentQuestion + 1);
+            }
+        }
+
+        function previousQuestion() {
+            if (QuizState.currentQuestion > 0) {
+                loadQuestion(QuizState.currentQuestion - 1);
+            }
+        }
+
+        function updateProgress() {
+            const quiz = quizData[QuizState.quizId];
+            const progress = ((QuizState.currentQuestion + 1) / quiz.questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function updateQuestionPalette() {
+            const paletteItems = document.querySelectorAll('.palette-item');
+            paletteItems.forEach((item, index) => {
+                item.classList.remove('current', 'answered');
+                if (index === QuizState.currentQuestion) {
+                    item.classList.add('current');
+                } else if (QuizState.answers[index] !== null) {
+                    item.classList.add('answered');
+                }
+            });
+        }
+
+        function initializeQuestionPalette(totalQuestions) {
+            const paletteGrid = document.getElementById('questionPalette');
+            paletteGrid.innerHTML = '';
+            for (let i = 0; i < totalQuestions; i++) {
+                const item = document.createElement('div');
+                item.className = 'palette-item';
+                item.textContent = i + 1;
+                item.onclick = () => loadQuestion(i);
+                paletteGrid.appendChild(item);
+            }
+        }
+
+        function updateNavigationButtons() {
+            const quiz = quizData[QuizState.quizId];
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            prevBtn.style.display = QuizState.currentQuestion === 0 ? 'none' : 'flex';
+            nextBtn.style.display = QuizState.currentQuestion === quiz.questions.length - 1 ? 'none' : 'flex';
+            submitBtn.style.display = QuizState.currentQuestion === quiz.questions.length - 1 ? 'flex' : 'none';
+        }
+
+        function startTimer() {
+            QuizState.timer = setInterval(() => {
+                QuizState.timeRemaining--;
+                
+                const minutes = Math.floor(QuizState.timeRemaining / 60);
+                const seconds = QuizState.timeRemaining % 60;
+                document.getElementById('timeRemaining').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (QuizState.timeRemaining <= 0) {
+                    clearInterval(QuizState.timer);
+                    autoSubmitQuiz('Time expired');
+                }
+            }, 1000);
+        }
+
+        async function submitQuiz() {
+            if (QuizState.isSubmitted) return;
+            
+            try {
+                QuizState.isSubmitted = true;
+                QuizState.endTime = new Date();
+                clearInterval(QuizState.timer);
+                
+                // Calculate score
+                const quiz = quizData[QuizState.quizId];
+                let correctCount = 0;
+                quiz.questions.forEach((question, index) => {
+                    if (QuizState.answers[index] === question.correctAnswer) {
+                        correctCount++;
+                    }
+                });
+                
+                const score = correctCount;
+                const percentage = Math.round((score / quiz.questions.length) * 100);
+                
+                // Update attempt in Firestore (REAL-TIME)
+                await db.collection('attempts').doc(QuizState.attemptId).update({
+                    status: 'completed',
+                    endTime: QuizState.endTime,
+                    score: score,
+                    percentage: percentage,
+                    timeTaken: Math.floor((QuizState.endTime - QuizState.startTime) / 1000),
+                    currentQuestion: QuizState.currentQuestion,
+                    answers: QuizState.answers,
+                    violationCount: QuizState.violationCount,
+                    violations: QuizState.violations,
+                    isAutoSubmitted: QuizState.isAutoSubmitted
+                });
+                
+                // Add to activity feed
+                await addActivityItem(`Quiz submitted by ${AppState.currentUser.displayName || 'User'} (Score: ${score}/${quiz.questions.length})`);
+                
+                // Stop monitoring
+                stopMonitoring();
+                
+                AppState.quizInProgress = false;
+                
+                // Close quiz modal
+                closeQuiz();
+                
+                showToast(`Quiz submitted! Score: ${score}/${quiz.questions.length} (${percentage}%)`, 'success');
+                console.log('Quiz submitted successfully');
+                
+            } catch (error) {
+                console.error('Error submitting quiz:', error);
+                showToast('Failed to submit quiz', 'error');
+            }
+        }
+
+        async function autoSubmitQuiz(reason) {
+            QuizState.isSubmitted = true;
+            QuizState.endTime = new Date();
+            QuizState.isAutoSubmitted = true;
+            clearInterval(QuizState.timer);
+            
+            try {
+                // Calculate score
+                const quiz = quizData[QuizState.quizId];
+                let correctCount = 0;
+                quiz.questions.forEach((question, index) => {
+                    if (QuizState.answers[index] === question.correctAnswer) {
+                        correctCount++;
+                    }
+                });
+                
+                const score = correctCount;
+                const percentage = Math.round((score / quiz.questions.length) * 100);
+                
+                // Update attempt in Firestore (REAL-TIME)
+                await db.collection('attempts').doc(QuizState.attemptId).update({
+                    status: 'completed',
+                    endTime: QuizState.endTime,
+                    score: score,
+                    percentage: percentage,
+                    timeTaken: Math.floor((QuizState.endTime - QuizState.startTime) / 1000),
+                    currentQuestion: QuizState.currentQuestion,
+                    answers: QuizState.answers,
+                    violationCount: QuizState.violationCount,
+                    violations: QuizState.violations,
+                    isAutoSubmitted: true,
+                    autoSubmitReason: reason
+                });
+                
+                // Add to activity feed
+                await addActivityItem(`Quiz auto-submitted: ${reason} (Score: ${score}/${quiz.questions.length})`);
+                
+                // Stop monitoring
+                stopMonitoring();
+                
+                AppState.quizInProgress = false;
+                
+                // Close quiz modal
+                closeQuiz();
+                
+                showToast(`Quiz auto-submitted: ${reason}`, 'warning');
+                console.log('Quiz auto-submitted:', reason);
+                
+            } catch (error) {
+                console.error('Error auto-submitting quiz:', error);
+            }
+        }
+
+        function closeQuiz() {
+            document.getElementById('quizModal').classList.remove('active');
+            
+            if (QuizState.timer) {
+                clearInterval(QuizState.timer);
+            }
+            
+            stopMonitoring();
+            AppState.quizInProgress = false;
+        }
+
+        // ========================================
+        // REAL-TIME DATABASE FUNCTIONS
+        // ========================================
+
+        async function updateCurrentQuestionInDB() {
+            if (!QuizState.attemptId) return;
+            
+            try {
+                await db.collection('attempts').doc(QuizState.attemptId).update({
+                    currentQuestion: QuizState.currentQuestion,
+                    lastActivity: new Date()
+                });
+            } catch (error) {
+                console.error('Error updating current question:', error);
+            }
+        }
+
+        async function updateAnswerInDB(questionIndex, answer) {
+            if (!QuizState.attemptId) return;
+            
+            try {
+                const answers = [...QuizState.answers];
+                answers[questionIndex] = answer;
+                
+                await db.collection('attempts').doc(QuizState.attemptId).update({
+                    answers: answers,
+                    lastActivity: new Date()
+                });
+            } catch (error) {
+                console.error('Error updating answer:', error);
+            }
+        }
+
+        async function recordViolationInDB(type, message) {
+            if (!QuizState.attemptId) return;
+            
+            try {
+                const violation = {
+                    userId: AppState.currentUser.uid,
+                    userName: AppState.currentUser.displayName || AppState.currentUser.email,
+                    quizId: QuizState.quizId,
+                    attemptId: QuizState.attemptId,
+                    type: type,
+                    message: message,
+                    timestamp: new Date(),
+                    questionNumber: QuizState.currentQuestion + 1,
+                    timeRemaining: QuizState.timeRemaining
+                };
+                
+                // Add to violations collection
+                await db.collection('violations').add(violation);
+                
+                // Update attempt
+                await db.collection('attempts').doc(QuizState.attemptId).update({
+                    violationCount: QuizState.violationCount,
+                    violations: QuizState.violations,
+                    lastActivity: new Date()
+                });
+                
+                // Add to activity feed
+                await addActivityItem(`${getViolationMessage(violation)} at Q${QuizState.currentQuestion + 1}`);
+                
+            } catch (error) {
+                console.error('Error recording violation:', error);
+            }
+        }
+
+        async function addActivityItem(message) {
+            try {
+                const activity = {
+                    message: message,
+                    timestamp: new Date(),
+                    userId: AppState.currentUser.uid,
+                    userName: AppState.currentUser.displayName || AppState.currentUser.email
+                };
+                
+                await db.collection('activities').add(activity);
+            } catch (error) {
+                console.error('Error adding activity:', error);
+            }
+        }
+
+        // ========================================
+        // MONITORING SYSTEM
+        // ========================================
+
+        function startMonitoring() {
+            if (QuizState.monitoringActive) return;
+            
+            QuizState.monitoringActive = true;
+            console.log('Starting strict exam monitoring...');
+            
+            // Tab switching detection
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Window focus/blur detection
+            window.addEventListener('blur', handleWindowBlur);
+            window.addEventListener('focus', handleWindowFocus);
+            
+            // Copy/paste detection
+            document.addEventListener('copy', handleCopyAttempt);
+            document.addEventListener('paste', handlePasteAttempt);
+            document.addEventListener('cut', handleCutAttempt);
+            
+            // Right-click disable
+            document.addEventListener('contextmenu', handleContextMenu);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+            
+            // Fullscreen monitoring
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+        }
+
+        function stopMonitoring() {
+            QuizState.monitoringActive = false;
+            console.log('Stopping exam monitoring...');
+            
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', handleWindowBlur);
+            window.removeEventListener('focus', handleWindowFocus);
+            document.removeEventListener('copy', handleCopyAttempt);
+            document.removeEventListener('paste', handlePasteAttempt);
+            document.removeEventListener('cut', handleCutAttempt);
+            document.removeEventListener('contextmenu', handleContextMenu);
+            document.removeEventListener('keydown', handleKeyboardShortcuts);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+        }
+
+        function handleVisibilityChange() {
+            if (document.hidden && QuizState.quizInProgress && !QuizState.isSubmitted) {
+                recordViolation('tab_switch', 'User switched to another tab');
+            }
+        }
+
+        function handleWindowBlur() {
+            if (QuizState.quizInProgress && !QuizState.isSubmitted) {
+                recordViolation('window_blur', 'User lost focus on quiz window');
+            }
+        }
+
+        function handleWindowFocus() {
+            // User returned to quiz window
+            console.log('User returned to quiz window');
+        }
+
+        function handleCopyAttempt(e) {
+            if (QuizState.quizInProgress && !QuizState.isSubmitted) {
+                e.preventDefault();
+                recordViolation('copy_attempt', 'User attempted to copy content');
+            }
+        }
+
+        function handlePasteAttempt(e) {
+            if (QuizState.quizInProgress && !QuizState.isSubmitted) {
+                e.preventDefault();
+                recordViolation('paste_attempt', 'User attempted to paste content');
+            }
+        }
+
+        function handleCutAttempt(e) {
+            if (QuizState.quizInProgress && !QuizState.isSubmitted) {
+                e.preventDefault();
+                recordViolation('cut_attempt', 'User attempted to cut content');
+            }
+        }
+
+        function handleContextMenu(e) {
+            if (QuizState.quizInProgress && !QuizState.isSubmitted) {
+                e.preventDefault();
+                recordViolation('right_click', 'User attempted to right-click');
+            }
+        }
+
+        function handleKeyboardShortcuts(e) {
+            if (!QuizState.quizInProgress || QuizState.isSubmitted) return;
+            
+            // Prevent common shortcuts
+            const key = e.key;
+            const ctrl = e.ctrlKey;
+            const shift = e.shiftKey;
+            
+            if (key === 'F12' || 
+                (ctrl && shift && (key === 'I' || key === 'J' || key === 'C' || key === 'D')) || 
+                (ctrl && key === 'u') ||
+                (ctrl && key === 'r')) {
+                e.preventDefault();
+                recordViolation('keyboard_shortcut', `User attempted blocked shortcut: ${key}`);
+            }
+        }
+
+        function handleFullscreenChange() {
+            const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || 
+                                  document.mozFullScreenElement || document.msFullscreenElement);
+            
+            // Only record violation if user was actually in fullscreen mode and then exited
+            if (QuizState.quizInProgress && !QuizState.isSubmitted && QuizState.wasInFullscreen && !isFullscreen) {
+                recordViolation('fullscreen_exit', 'User exited fullscreen mode');
+            }
+            
+            // Track if user was in fullscreen
+            QuizState.wasInFullscreen = isFullscreen;
+        }
+
+        async function recordViolation(type, message) {
+            if (QuizState.isSubmitted) return;
+            
+            const violation = {
+                type: type,
+                message: message,
+                timestamp: new Date(),
+                questionNumber: QuizState.currentQuestion + 1,
+                timeRemaining: QuizState.timeRemaining
+            };
+            
+            QuizState.violations.push(violation);
+            QuizState.violationCount++;
+            
+            // Update UI
+            document.getElementById('violationCount').textContent = QuizState.violationCount;
+            
+            // Show warning
+            showViolationWarning(message, QuizState.violationCount);
+            
+            // Play sound
+            playViolationSound();
+            
+            // Record in database (REAL-TIME)
+            await recordViolationInDB(type, message);
+            
+            // Check for auto-submit (3 strikes)
+            if (QuizState.violationCount >= QuizState.maxViolations) {
+                autoSubmitQuiz('Maximum violations reached (3)');
+            }
+            
+            console.log('Violation recorded:', violation);
+        }
+
+        function showViolationWarning(message, strikeNumber) {
+            const warning = document.getElementById('violationWarning');
+            document.getElementById('violationMessage').textContent = message;
+            document.getElementById('currentStrike').textContent = strikeNumber;
+            
+            warning.classList.add('show');
+            
+            // Auto-hide after 4 seconds
+            setTimeout(() => {
+                warning.classList.remove('show');
+            }, 4000);
+        }
+
+        function closeViolationWarning() {
+            document.getElementById('violationWarning').classList.remove('show');
+        }
+
+        async function requestFullscreen() {
+            const elem = document.documentElement;
+            
+            if (elem.requestFullscreen) {
+                await elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) {
+                await elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                await elem.msRequestFullscreen();
+            }
+        }
+
+        function playViolationSound() {
+            // Create a simple beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }
+
+        // ========================================
+        // UTILITY FUNCTIONS
+        // ========================================
+
+        function getViolationMessage(violation) {
+            const messages = {
+                'tab_switch': 'Student switched tab',
+                'window_blur': 'Student lost focus',
+                'fullscreen_exit': 'Student exited fullscreen',
+                'copy_attempt': 'Copy attempt detected',
+                'paste_attempt': 'Paste attempt detected',
+                'cut_attempt': 'Cut attempt detected',
+                'right_click': 'Right-click blocked',
+                'keyboard_shortcut': 'Keyboard shortcut blocked'
+            };
+            
+            return messages[violation.type] || 'Violation detected';
+        }
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+            return `${Math.floor(seconds / 86400)} days ago`;
+        }
+
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">${type.charAt(0).toUpperCase()}</div>
+                <div class="toast-message">${message}</div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    toastContainer.removeChild(toast);
+                }, 300);
+            }, 5000);
+        }
+
+        function refreshQuizzes() {
+            loadQuizzes();
+            showToast('Quizzes refreshed', 'info');
+        }
+
+        function clearActivity() {
+            // In a real app, this would clear the activity feed
+            showToast('Activity cleared', 'info');
+        }
+
+        // Global exports
+        window.startQuiz = startQuiz;
+        window.selectOption = selectOption;
+        window.nextQuestion = nextQuestion;
+        window.previousQuestion = previousQuestion;
+        window.submitQuiz = submitQuiz;
+        window.closeQuiz = closeQuiz;
+        window.switchRole = switchRole;
+        window.toggleSidebar = toggleSidebar;
+        window.refreshQuizzes = refreshQuizzes;
+        window.clearActivity = clearActivity;
+        window.closeViolationWarning = closeViolationWarning;
+
+        console.log('Real-Time Exam Monitoring System loaded successfully!');
+    </script>
+</body>
+</html>
