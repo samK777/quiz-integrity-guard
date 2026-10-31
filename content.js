@@ -2,10 +2,16 @@ console.log("🟣 Exam Monitor Content Script Loaded:", window.location.href);
 
 if (!window.__examMonitorLoaded) {
   window.__examMonitorLoaded = true;
+  const isLocalPortal = ["localhost", "127.0.0.1"].includes(window.location.hostname) && window.location.port === "5005";
+  const portalManagedTypes = new Set([
+    "tab_switch", "window_blur", "copy_attempt", "paste_attempt", "cut_attempt",
+    "right_click", "keyboard_shortcut", "fullscreen_exit", "screenshot_attempt"
+  ]);
   let examTerminated = false;
+  let serverAutoSubmitted = false;
 
   let violations = 0;
-  const MAX = 5;
+  const MAX = 3;
 
   let lastViolationTime = 0;
   const COOLDOWN = 2000;
@@ -28,16 +34,23 @@ if (!window.__examMonitorLoaded) {
 
   document.body.appendChild(dashboard);
 
+function isPortalExamActive() {
+  if (!isLocalPortal) return true;
+  const quizPage = document.getElementById("quizPage");
+  return Boolean(quizPage?.classList.contains("active") && quizPage.style.display !== "none");
+}
+
 function updateDashboard() {
   let status = "Safe ✅";
   let color = "#00ff88";
+  dashboard.hidden = isLocalPortal && !isPortalExamActive();
 
-  if (violations >= 3 && violations < MAX) {
+  if (serverAutoSubmitted) {
+    status = "Submitted by backend";
+    color = "#ff4d4d";
+  } else if (violations >= 2) {
     status = "Warning ⚠️";
     color = "#ffd93d";
-  } else if (violations >= MAX) {
-    status = "Terminated ❌";
-    color = "#ff4d4d";
   }
 
   dashboard.innerHTML = `
@@ -48,6 +61,10 @@ function updateDashboard() {
   `;
 }
   updateDashboard(); // 👈 INITIAL CALL
+  if (isLocalPortal) {
+    const quizPage = document.getElementById("quizPage");
+    if (quizPage) new MutationObserver(updateDashboard).observe(quizPage, { attributes: true, attributeFilter: ["class", "style"] });
+  }
 
   // ---------------- Warning Popup ----------------
   function showWarning(message) {
@@ -69,8 +86,49 @@ function updateDashboard() {
   }
 
   // ---------------- Violation Handler ----------------
+function backendViolationType(reason) {
+  const value = reason.toUpperCase();
+  if (value.includes("TAB SWITCH")) return "tab_switch";
+  if (value.includes("WINDOW BLUR")) return "window_blur";
+  if (value.includes("FULLSCREEN")) return "fullscreen_exit";
+  if (value === "COPY") return "copy_attempt";
+  if (value === "PASTE") return "paste_attempt";
+  if (value === "CUT") return "cut_attempt";
+  if (value.includes("RIGHT CLICK")) return "right_click";
+  if (value.includes("KEYBOARD SHORTCUT")) return "keyboard_shortcut";
+  if (value.includes("SCREENSHOT ATTEMPT")) return "screenshot_attempt";
+  if (value.includes("INACTIVITY")) return "inactivity";
+  if (value.includes("FAST SUBMISSION")) return "fast_submission";
+  if (value.includes("DEVTOOLS")) return "devtools_opened";
+  return null;
+}
+
+function reportToBackend(reason) {
+  const type = backendViolationType(reason);
+  if (!type) return;
+  chrome.runtime.sendMessage({
+    type: "REPORT_VIOLATION",
+    violation: { type, message: `${reason} detected by Exam Monitor extension` }
+  }).then(result => {
+    if (!result?.ok) {
+      console.warn("Exam Monitor could not sync this event:", result?.error || "Unknown error");
+      return;
+    }
+    violations = Math.max(violations, Number(result.violationCount) || 0);
+    updateDashboard();
+    if (result.autoSubmitted) {
+      examTerminated = true;
+      serverAutoSubmitted = true;
+      updateDashboard();
+      showWarning("Attempt was auto-submitted by the backend.");
+    }
+  }).catch(error => console.warn("Exam Monitor backend connection failed:", error.message));
+}
+
 function flag(reason) {
-  if (examTerminated) return; // 🚫 stop everything
+  if (examTerminated || !isPortalExamActive()) return;
+  const type = backendViolationType(reason);
+  if (isLocalPortal && portalManagedTypes.has(type)) return;
 
   const now = Date.now();
   if (now - lastViolationTime < COOLDOWN) return;
@@ -78,22 +136,15 @@ function flag(reason) {
   lastViolationTime = now;
   violations++;
 
-  if (violations > MAX) violations = MAX; // 🚫 cap at 5
+  if (violations > MAX) violations = MAX;
 
   console.log(`🚨 VIOLATION ${violations}: ${reason}`);
   showWarning(`⚠️ ${reason} detected!`);
 
   updateDashboard();
+  reportToBackend(reason);
 
-  if (violations >= MAX) {
-    examTerminated = true; // 🔒 LOCK
-
-    showWarning("❌ Too many violations. Submitting...");
-
-    setTimeout(() => {
-      document.querySelector("form")?.submit();
-    }, 2000);
-  }
+  if (violations >= MAX) showWarning("Three extension signals reported. The backend applies the attempt policy.");
 }
   // ---------------- Fullscreen ----------------
 let fullscreenActivated = false;
@@ -101,6 +152,7 @@ let lastFullscreenExit = 0;
 
 // First click → enter fullscreen
 document.addEventListener("click", () => {
+  if (!isPortalExamActive()) return;
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
   }
@@ -117,7 +169,7 @@ document.addEventListener("fullscreenchange", () => {
       lastFullscreenExit = now;
       flag("EXITED FULLSCREEN");
 
-      showWarning("⚠️ Click anywhere to resume fullscreen");
+      if (!isLocalPortal) showWarning("⚠️ Click anywhere to resume fullscreen");
     }
   }
 });
@@ -138,6 +190,8 @@ document.addEventListener("fullscreenchange", () => {
   // ---------------- Copy / Paste ----------------
   ["copy", "paste", "cut"].forEach(evt => {
     document.addEventListener(evt, e => {
+      const type = backendViolationType(evt.toUpperCase());
+      if (isLocalPortal && (!isPortalExamActive() || portalManagedTypes.has(type))) return;
       e.preventDefault();
       flag(evt.toUpperCase());
     });
@@ -146,6 +200,7 @@ document.addEventListener("fullscreenchange", () => {
   // ---------------- Right Click ----------------
   document.addEventListener("contextmenu", (e) => {
     if (!e.metaKey) {
+      if (isLocalPortal && (!isPortalExamActive() || portalManagedTypes.has("right_click"))) return;
       e.preventDefault();
       flag("RIGHT CLICK");
     }
@@ -178,16 +233,22 @@ document.addEventListener("fullscreenchange", () => {
     }
   });
 
-  // ---------------- Screenshot Detection ----------------
-  document.addEventListener("keydown", (e) => {
-    if (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4")) {
-      flag("SCREENSHOT ATTEMPT (Mac)");
-    }
+  // The browser can only observe screenshot shortcuts that reach the page.
+  // OS capture tools may intercept their own key combinations before this code.
+  function isScreenshotShortcut(event) {
+    const key = String(event.key || "").toLowerCase();
+    const code = String(event.code || "").toLowerCase();
+    const macCapture = event.metaKey && event.shiftKey &&
+      (["digit3", "digit4", "digit5"].includes(code) || ["3", "4", "5", "#", "$", "%"].includes(key));
+    const printScreen = ["printscreen", "print", "snapshot"].includes(key) ||
+      ["printscreen", "snapshot"].includes(code);
+    return macCapture || printScreen;
+  }
 
-    if (e.key === "PrintScreen") {
-      flag("SCREENSHOT ATTEMPT (Windows)");
-    }
-  });
+  // ---------------- Best-effort Screenshot Shortcut Detection ----------------
+  window.addEventListener("keydown", (event) => {
+    if (isScreenshotShortcut(event)) flag("SCREENSHOT ATTEMPT (keyboard shortcut)");
+  }, true);
 
   // ---------------- DevTools Detection ----------------
   let devtoolsOpen = false;

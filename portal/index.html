@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exam Integrity Portal - Real-time Monitoring</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
+    <link href="styles.css?v=20261031-teal-theme" rel="stylesheet">
 </head>
 <body>
     <!-- Loading Screen -->
@@ -18,7 +18,7 @@
     </div>
 
     <!-- Login Page -->
-    <div id="loginPage" class="page hidden">
+    <div id="loginPage" class="page">
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
@@ -76,43 +76,12 @@
                         <label>Password</label>
                         <input type="password" id="signupPassword" required placeholder="Create password">
                     </div>
-                    <div class="form-group">
-                        <label>Account Type</label>
-                        <div class="role-selection">
-                            <label class="role-option">
-                                <input type="radio" name="role" value="student" checked>
-                                <div class="role-card">
-                                    <div class="role-icon">S</div>
-                                    <div class="role-title">Student</div>
-                                    <div class="role-desc">Take quizzes</div>
-                                </div>
-                            </label>
-                            <label class="role-option">
-                                <input type="radio" name="role" value="teacher">
-                                <div class="role-card">
-                                    <div class="role-icon">T</div>
-                                    <div class="role-title">Teacher</div>
-                                    <div class="role-desc">Create quizzes</div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
+                    <p class="auth-note">Public sign-up creates student accounts. Teacher accounts are provisioned by an administrator.</p>
                     <button type="submit" class="btn btn-primary full-width">
                         <span>Create Account</span>
                     </button>
                 </form>
                 
-                <div class="auth-footer">
-                    <p>Demo Accounts:</p>
-                    <div class="demo-accounts">
-                        <div class="demo-account">
-                            <strong>Student:</strong> student@demo.com / student123
-                        </div>
-                        <div class="demo-account">
-                            <strong>Teacher:</strong> teacher@demo.com / teacher123
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -137,19 +106,18 @@
             </div>
             
             <div class="dashboard-content">
+                <section class="student-batch-join" aria-labelledby="studentBatchJoinTitle">
+                    <div><h2 id="studentBatchJoinTitle">Join a student batch</h2><p>Paste a teacher’s invite code or open their invite link, then send a request for approval.</p></div>
+                    <form id="studentBatchJoinForm" class="batch-join-form">
+                        <div class="form-group"><label for="studentBatchInviteCode">Invite link or code</label><input id="studentBatchInviteCode" autocomplete="off" inputmode="text" maxlength="2048" placeholder="Paste your batch invite link or code" required></div>
+                        <button class="btn btn-primary" type="submit">Request to join</button>
+                    </form>
+                    <div id="studentBatchRequests" class="student-batch-requests" role="status" aria-live="polite"><p>Loading your batch requests…</p></div>
+                </section>
                 <div class="quiz-section">
                     <h2>Available Quizzes</h2>
-                    <div class="quiz-grid">
-                        <div class="quiz-card" onclick="startQuiz('physics_basic_001')">
-                            <div class="quiz-icon">P</div>
-                            <h3>Basic Physics Quiz</h3>
-                            <p>Test your knowledge of physics fundamentals</p>
-                            <div class="quiz-meta">
-                                <span class="quiz-duration">15 minutes</span>
-                                <span class="quiz-questions">10 questions</span>
-                            </div>
-                            <button class="btn btn-primary">Start Quiz</button>
-                        </div>
+                    <div class="quiz-grid" id="studentQuizGrid">
+                        <p>Loading available quizzes…</p>
                     </div>
                 </div>
                 
@@ -185,40 +153,90 @@
                     <button class="btn btn-outline" onclick="logout()">Logout</button>
                 </div>
             </div>
-            
+            <nav class="teacher-dashboard-nav" aria-label="Teacher dashboard sections">
+                <a href="#teacherBatches">Batches</a><a href="#teacherQuizTools">Quiz management</a><a href="#teacherMonitoring">Monitoring</a><a href="#teacherAnalytics">Analytics</a><a href="#teacherActivity">Activity</a>
+            </nav>
             <div class="dashboard-content">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="activeStudentsCount">0</div>
-                        <div class="stat-label">Active Students</div>
+                <section id="teacherBatches" class="monitoring-section batch-management" aria-labelledby="batchManagementTitle">
+                    <div class="teacher-tools-heading">
+                        <div><h2 id="batchManagementTitle">Student Batches</h2><p>Create groups and manage registered student membership. All teachers share this workspace.</p></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalAttemptsCount">0</div>
-                        <div class="stat-label">Total Attempts</div>
+                    <form id="createBatchForm" class="teacher-form batch-create-form">
+                        <h3>Create a batch</h3>
+                        <div class="form-group"><label for="newBatchName">Batch name</label><input id="newBatchName" maxlength="120" placeholder="e.g. CCE Semester 5" required></div>
+                        <button class="btn btn-primary" type="submit">Create batch</button>
+                    </form>
+                    <div id="batchList" class="batch-list" role="status" aria-live="polite"><p>Loading batches…</p></div>
+                    <section id="batchDetailPanel" class="batch-detail hidden" aria-labelledby="batchDetailTitle">
+                        <div class="detail-heading"><h3 id="batchDetailTitle">Batch students</h3><button type="button" id="closeBatchDetail" class="btn btn-outline btn-small">Close</button></div>
+                        <section class="batch-invite-tools" aria-labelledby="batchInviteTitle">
+                            <div><h4 id="batchInviteTitle">Invite students</h4><p>Invite links expire after 14 days. Creating a new link replaces the previous one.</p></div>
+                            <div class="batch-invite-actions"><button type="button" id="createBatchInvite" class="btn btn-primary">Create invite link</button><button type="button" id="revokeBatchInvite" class="btn btn-outline">Revoke link</button></div>
+                            <div id="batchInviteOutput" class="batch-invite-output" aria-live="polite"></div>
+                        </section>
+                        <section class="batch-join-review" aria-labelledby="batchJoinReviewTitle">
+                            <h4 id="batchJoinReviewTitle">Pending join requests</h4>
+                            <div id="batchJoinRequests" class="batch-join-requests" role="status" aria-live="polite"><p>Loading requests…</p></div>
+                        </section>
+                        <form id="addBatchStudentForm" class="batch-add-form">
+                            <div class="form-group"><label for="batchStudentIdentifier">Registered student ID or email</label><input id="batchStudentIdentifier" autocomplete="off" placeholder="student@example.com or 123" required></div>
+                            <button class="btn btn-primary" type="submit">Add student</button>
+                        </form>
+                        <div id="batchStudentList" class="batch-student-list" role="status" aria-live="polite"></div>
+                    </section>
+                </section>
+                <section id="teacherQuizTools" class="monitoring-section teacher-quiz-tools">
+                    <div class="teacher-tools-heading">
+                        <div><h2>Quiz Management</h2><p>Create a quiz, then add questions to it. Correct answers stay private from students.</p></div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="violationsCount">0</div>
-                        <div class="stat-label">Violations Today</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="avgScoreCount">0%</div>
-                        <div class="stat-label">Average Score</div>
-                    </div>
+                    <form id="createQuizForm" class="teacher-form teacher-form--quiz">
+                        <h3>Create a quiz</h3>
+                        <div class="form-group"><label for="newQuizTitle">Quiz title</label><input id="newQuizTitle" maxlength="200" placeholder="e.g. Biology — Cell Structure" required></div>
+                        <div class="form-group"><label for="newQuizDescription">Description <span class="optional-label">Optional</span></label><textarea id="newQuizDescription" maxlength="5000" placeholder="Tell students what this quiz covers."></textarea></div>
+                        <div class="form-group"><label for="newQuizDuration">Duration (minutes)</label><input id="newQuizDuration" type="number" min="1" max="1440" value="15" required></div>
+                        <label class="checkbox-label"><input id="newQuizActive" type="checkbox" checked> Active quiz</label>
+                        <button class="btn btn-primary" type="submit">Create Quiz</button>
+                    </form>
+                    <form id="addQuestionForm" class="teacher-form teacher-form--question">
+                        <h3>Add a question</h3>
+                        <div class="form-group"><label for="teacherQuizSelect">Quiz</label><select id="teacherQuizSelect" required><option value="">Select a quiz</option></select></div>
+                        <div class="form-group"><label for="newQuestionText">Question</label><textarea id="newQuestionText" maxlength="5000" required></textarea></div>
+                        <fieldset class="option-editor"><legend>Answer options <span class="optional-label">2–10 choices</span></legend><div id="questionOptionRows" class="option-rows"></div><button class="btn btn-outline option-add" id="addQuestionOption" type="button">＋ Add option</button></fieldset>
+                        <div class="form-group"><label for="newCorrectAnswer">Correct answer</label><select id="newCorrectAnswer" required></select></div>
+                        <button class="btn btn-primary" type="submit">Add Question</button>
+                    </form>
+                    <div id="teacherQuizList" class="teacher-quiz-list" role="status" aria-live="polite"></div>
+                </section>
+                <div class="stats-grid teacher-stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="totalStudentsCount">—</div><div class="stat-label">Total students</div></div>
+                    <div class="stat-card"><div class="stat-value" id="activeQuizzesCount">—</div><div class="stat-label">Active quizzes</div></div>
+                    <div class="stat-card"><div class="stat-value" id="liveAttemptsCount">—</div><div class="stat-label">Live attempts</div></div>
+                    <div class="stat-card"><div class="stat-value" id="completedAttemptsCount">—</div><div class="stat-label">Completed attempts</div></div>
+                    <div class="stat-card"><div class="stat-value" id="totalViolationsCount">—</div><div class="stat-label">Total violations</div></div>
+                    <div class="stat-card"><div class="stat-value" id="autoSubmittedCount">—</div><div class="stat-label">Auto-submitted</div></div>
                 </div>
                 
-                <div class="monitoring-section">
+                <div id="teacherMonitoring" class="monitoring-section">
                     <h2>Live Quiz Monitoring</h2>
-                    <div class="students-grid" id="liveStudentsGrid">
-                        <!-- Live students will be populated here -->
-                    </div>
+                    <p id="backendRealtimeStatus" role="status">Live alerts: not connected</p>
+                    <div class="monitoring-controls"><label class="sr-only" for="attemptSearch">Search attempts</label><input id="attemptSearch" type="search" placeholder="Search student, email or quiz"><label class="sr-only" for="attemptStatusFilter">Filter by status</label><select id="attemptStatusFilter"><option value="all">All statuses</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="auto_submitted">Auto-submitted</option></select></div>
+                    <div class="table-wrap"><table class="monitoring-table"><thead><tr><th>Student</th><th>Quiz</th><th>Attempt</th><th>Started</th><th>Time taken</th><th>Marks</th><th>Status</th><th>Violations</th><th>Last activity</th><th></th></tr></thead><tbody id="monitoringTableBody"><tr><td colspan="10">Loading attempts…</td></tr></tbody></table></div>
+                </div>
+
+                <div id="teacherAnalytics" class="analytics-grid">
+                    <section class="monitoring-section"><h2>Attempts by status</h2><div id="attemptStatusChart" class="mini-chart"></div></section>
+                    <section class="monitoring-section"><h2>Violations by type</h2><div id="violationTypeChart" class="mini-chart"></div></section>
+                    <section class="monitoring-section"><h2>Score distribution</h2><div id="scoreDistributionChart" class="mini-chart"></div></section>
+                    <section class="monitoring-section"><h2>Completion statistics</h2><div id="completionStatisticsChart" class="mini-chart"></div></section>
                 </div>
                 
-                <div class="activity-section">
+                <div id="teacherActivity" class="activity-section">
                     <h2>Recent Activity</h2>
                     <div class="activity-feed" id="teacherActivityFeed">
                         <!-- Activity items will be populated here -->
                     </div>
                 </div>
+                <section id="attemptDetailPanel" class="attempt-detail-panel hidden" aria-live="polite" aria-labelledby="attemptDetailTitle"><div class="detail-heading"><h2 id="attemptDetailTitle">Attempt details</h2><button type="button" id="closeAttemptDetail" class="btn btn-outline">Close</button></div><div id="attemptDetailContent"></div></section>
             </div>
         </div>
     </div>
@@ -229,7 +247,7 @@
             <!-- Quiz Header -->
             <header class="quiz-header">
                 <div class="header-left">
-                    <div class="quiz-title">Basic Physics Quiz</div>
+                    <div class="quiz-title" id="activeQuizTitle">Quiz</div>
                     <div class="quiz-info">
                         <span class="question-counter">Question <span id="currentQuestion">1</span> of <span id="totalQuestions">10</span></span>
                         <span class="timer">
@@ -274,10 +292,10 @@
                     </div>
                     
                     <div class="question-controls">
-                        <button class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()">
+                        <button type="button" class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()" aria-label="Go to the previous question">
                             <span>Previous</span>
                         </button>
-                        <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">
+                        <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" aria-label="Go to the next question">
                             <span>Next</span>
                         </button>
                         <button class="btn btn-success" id="submitBtn" onclick="submitQuiz()" style="display: none;">
@@ -311,6 +329,10 @@
                     <div class="stat-row">
                         <div class="stat-label">Incorrect Answers:</div>
                         <div class="stat-value" id="incorrectAnswers">0</div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label">Questions Not Attempted:</div>
+                        <div class="stat-value" id="unattemptedQuestions">0</div>
                     </div>
                     <div class="stat-row">
                         <div class="stat-label">Violations:</div>
@@ -365,10 +387,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="app.js"></script>
+    <script src="backend-config.js"></script>
+    <script src="app.js?v=20261031-teacher-attempt-details"></script>
 </body>
 </html>

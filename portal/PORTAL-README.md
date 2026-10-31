@@ -1,262 +1,50 @@
-# Exam Portal - Real-time Quiz Monitoring System
+# Quiz Integrity Guard portal
 
-A comprehensive, production-ready exam portal with strict monitoring, real-time teacher dashboard, and live deployment capabilities.
+The existing portal screens now use the Node.js + Express + PostgreSQL backend for registration, login, quiz management, attempts, answer saving, scoring, and violation tracking. Teacher monitoring uses Socket.IO. Firebase Authentication and Firestore are not loaded by the active portal page; their old configuration files are retained temporarily until final migration cleanup.
 
-## Features
+## Run locally
 
-### Student Experience
-- **Secure Login/Signup** with Firebase Authentication
-- **Fullscreen Quiz Mode** with enforcement
-- **One Question at a Time** interface
-- **15-minute Timer** with progress tracking
-- **Question Palette** for navigation
-- **Multiple Attempts** tracking
-- **Real-time Results** with violation tracking
+Terminal 1 — backend:
 
-### Teacher Dashboard
-- **Live Monitoring** of active students
-- **Real-time Activity Feed** showing violations
-- **Student Statistics** and progress tracking
-- **Violation Tracking** with question numbers
-- **Attempt History** management
-
-### Strict Exam Monitoring
-- **3-Strike Violation System** - Auto-submit after 3 violations
-- **Fullscreen Enforcement** - Violation if exited
-- **Tab Switch Detection** - Tracks tab changes
-- **Window Blur Detection** - Monitors focus loss
-- **Copy/Paste Blocking** - Prevents content theft
-- **Right-click Disable** - Blocks context menu
-- **Keyboard Shortcut Blocking** - F12, Ctrl+Shift+I, etc.
-- **Sound Alerts** on violations
-- **Question-Level Tracking** - Violations linked to specific questions
-
-### Real-time Features
-- **Live Firestore Sync** - All data saved in real-time
-- **Teacher Dashboard Updates** - Instant violation notifications
-- **Cross-browser Compatibility** - Works on all modern browsers
-- **Mobile Responsive** - Works on tablets and phones
-
-## Quick Start
-
-### 1. Firebase Setup
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-2. Enable Authentication (Email/Password)
-3. Enable Firestore Database
-4. Update `firebase-config.js` with your configuration:
-
-```javascript
-const firebaseConfig = {
-    apiKey: "your-api-key",
-    authDomain: "your-project.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "your-sender-id",
-    appId: "your-app-id"
-};
-```
-
-### 2. Local Development
-1. Install Firebase CLI:
 ```bash
-npm install -g firebase-tools
+cd ~/Desktop/quiz-integrity-guard-github/backend
+npm run dev
 ```
 
-2. Login to Firebase:
+Terminal 2 — static portal server (no Firebase account needed):
+
 ```bash
-firebase login
+cd ~/Desktop/quiz-integrity-guard-github/portal
+python3 -m http.server 5005
 ```
 
-3. Initialize Firebase in your project:
-```bash
-firebase init hosting
-```
+Open [http://localhost:5005](http://localhost:5005). If port `5005` is occupied by a previous `firebase serve`, stop that process with **Ctrl+C** first.
 
-4. Run locally:
-```bash
-firebase serve --only hosting
-```
+## Use the portal
 
-5. Open `http://localhost:5000` in your browser
+- Create student accounts from **Sign Up**. Public sign-up always creates a student.
+- Sign in as a student to see active quizzes, start an attempt, save answers, submit, and view past results.
+- Sign in as a teacher to create quizzes and questions, manage student batches, and view attempts and recent violations. Batch management supports direct add/remove of registered students, plus reusable 14-day invite links with teacher approval or rejection of join requests.
+- Students can open a teacher's batch invite link, sign in or create a student account, and submit a join request. The link does not add them automatically; their request status appears on the student dashboard until a teacher reviews it.
+- Teacher accounts are provisioned from the backend folder with `npm run create-teacher`. Existing teacher passwords can be reset with `npm run reset-teacher-password`; Terminal hides password input.
 
-### 3. Deployment
-1. Deploy to Firebase Hosting:
-```bash
-firebase deploy --only hosting
-```
+The backend calculates scores from saved answers. Student quiz responses do not contain correct answers.
 
-2. Your live site will be available at: `https://your-project.firebaseapp.com`
+## Connect the Chrome extension
 
-## Demo Accounts
+1. Open `chrome://extensions`, turn on **Developer mode**, and select **Load unpacked**.
+2. Select the repository root folder containing `manifest.json`.
+3. Copy the extension ID shown in Chrome. In `backend/.env`, set `CHROME_EXTENSION_ID` to that ID.
+4. Restart the backend.
+5. Start a quiz in the portal. Open the Exam Monitor extension popup, sign in with the same student backend account, and select the in-progress attempt.
 
-### Student Login
-- **Email**: `student@demo.com`
-- **Password**: `student123`
+The extension injects into Google Forms and the local portal origin. In the portal it only records extension-specific signals such as inactivity, screenshot shortcut keys, and a developer-tools size heuristic; the portal itself already reports tab switching, focus, copy/paste, right-click, keyboard shortcuts, and fullscreen changes, so the extension skips those duplicates. On Google Forms it can report its supported browser events. A screenshot key or developer-tools heuristic is best-effort and cannot prove intent. If it cannot identify the current question, it leaves the question number blank. The extension stores the JWT in Chrome extension storage and does not retain the password.
 
-### Teacher Login
-- **Email**: `teacher@demo.com`
-- **Password**: `teacher123`
+## Local configuration
 
-## File Structure
+- Portal API address: `portal/backend-config.js` (default `http://localhost:5050`).
+- Backend portal origin: `http://localhost:5005` is allowed by default.
+- Extension CORS origin: set `CHROME_EXTENSION_ID` in `backend/.env` as described above. Restart the backend after changing configuration.
+- For deployment, use HTTPS for the portal and API, add the exact portal origin to `CORS_ORIGIN`, update `portal/backend-config.js`, and add the deployed API host to the extension manifest permissions.
 
-```
-exam-portal/
-    index.html              # Main application HTML
-    styles.css              # Complete styling with glassmorphism
-    app.js                  # Full application logic
-    firebase-config.js      # Firebase configuration
-    firebase.json           # Firebase hosting config
-    package.json            # Project metadata
-    README.md               # This file
-```
-
-## How It Works
-
-### Student Flow
-1. **Login/Signup** - Student creates account or logs in
-2. **Dashboard** - View available quizzes and attempt history
-3. **Start Quiz** - Click "Start Quiz" button
-4. **Fullscreen Required** - System requests fullscreen mode
-5. **Quiz Interface** - Answer questions with strict monitoring
-6. **Violations Tracked** - Any violation triggers warning
-7. **3-Strike System** - Auto-submit after 3 violations
-8. **Results** - View score, accuracy, and violations
-
-### Teacher Flow
-1. **Login** - Teacher logs in with credentials
-2. **Dashboard** - View live monitoring panel
-3. **Real-time Updates** - See student activity instantly
-4. **Activity Feed** - Monitor violations as they happen
-5. **Student Management** - Track progress and violations
-
-### Violation System
-- **Strike 1**: Warning popup, sound alert, logged to database
-- **Strike 2**: Second warning, increased monitoring
-- **Strike 3**: Auto-submit quiz, marked as violation-based submission
-
-### Real-time Sync
-All data is synchronized in real-time:
-- **Student Progress**: Current question, answers, time remaining
-- **Violations**: Type, timestamp, question number
-- **Teacher Dashboard**: Live updates via Firestore listeners
-
-## Database Structure
-
-### Attempts Collection
-```javascript
-{
-    userId: "user123",
-    quizId: "physics_basic_001",
-    attemptNumber: 1,
-    startTime: timestamp,
-    endTime: timestamp,
-    answers: [0, 1, null, 2, ...],
-    currentQuestion: 3,
-    violationCount: 2,
-    violations: [...],
-    status: "in_progress|completed",
-    isAutoSubmitted: false,
-    score: 8,
-    percentage: 80
-}
-```
-
-### Violations Collection
-```javascript
-{
-    userId: "user123",
-    quizId: "physics_basic_001",
-    attemptId: "attempt123",
-    type: "tab_switch|fullscreen_exit|copy_attempt",
-    message: "User switched to another tab",
-    timestamp: timestamp,
-    questionNumber: 3,
-    timeRemaining: 720
-}
-```
-
-## Browser Compatibility
-
-- **Chrome** - Full support
-- **Firefox** - Full support
-- **Safari** - Full support
-- **Edge** - Full support
-- **Mobile** - Responsive design
-
-## Security Features
-
-- **Firebase Authentication** - Secure user management
-- **Fullscreen Enforcement** - Prevents cheating
-- **Tab Switch Detection** - Monitors focus changes
-- **Input Blocking** - Prevents copy/paste
-- **Keyboard Shortcuts** - Blocks developer tools
-- **Real-time Logging** - All violations tracked
-- **Secure Storage** - Data encrypted in transit
-
-## Customization
-
-### Adding New Quizzes
-1. Add quiz data to `app.js` in the `physicsQuiz` object
-2. Update quiz ID and questions array
-3. Test with different question types
-
-### Changing Violation Rules
-1. Modify `QuizState.maxViolations` in `app.js`
-2. Update violation detection functions
-3. Adjust warning messages and thresholds
-
-### Customizing UI
-1. Modify CSS variables in `styles.css`
-2. Update colors, spacing, and animations
-3. Add new components as needed
-
-## Troubleshooting
-
-### Common Issues
-
-**Fullscreen not working**
-- Ensure browser supports fullscreen API
-- Check if user interaction is required
-- Verify HTTPS is enabled (required for fullscreen)
-
-**Firebase connection issues**
-- Check Firebase configuration
-- Verify Firestore rules
-- Ensure authentication is enabled
-
-**Violations not being tracked**
-- Check monitoring functions are active
-- Verify event listeners are attached
-- Check browser console for errors
-
-**Real-time updates not working**
-- Verify Firestore rules allow reads
-- Check network connection
-- Ensure Firebase is initialized
-
-## Performance
-
-- **Optimized for 100+ concurrent users**
-- **Real-time updates with minimal latency**
-- **Efficient Firestore queries**
-- **Compressed assets**
-- **CDN delivery via Firebase Hosting**
-
-## Support
-
-For issues and feature requests:
-1. Check the troubleshooting section
-2. Review browser console for errors
-3. Verify Firebase configuration
-4. Test with demo accounts
-
-## License
-
-MIT License - Free for commercial and personal use
-
----
-
-**Built with**: HTML5, CSS3, Vanilla JavaScript, Firebase
-**Deployment**: Firebase Hosting
-**Real-time**: Firestore Database
-**Authentication**: Firebase Auth
+Violation events originate from the browser and are useful for monitoring, but a browser report alone cannot prove student intent.
