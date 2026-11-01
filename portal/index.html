@@ -194,6 +194,13 @@
                         <div class="form-group"><label for="newQuizTitle">Quiz title</label><input id="newQuizTitle" maxlength="200" placeholder="e.g. Biology — Cell Structure" required></div>
                         <div class="form-group"><label for="newQuizDescription">Description <span class="optional-label">Optional</span></label><textarea id="newQuizDescription" maxlength="5000" placeholder="Tell students what this quiz covers."></textarea></div>
                         <div class="form-group"><label for="newQuizDuration">Duration (minutes)</label><input id="newQuizDuration" type="number" min="1" max="1440" value="15" required></div>
+                        <div class="form-group">
+    <label for="newQuizAudience">Who can access this quiz?</label>
+    <select id="newQuizAudience" required>
+        <option value="global">Everyone</option>
+        <option value="batch">Selected Batch only</option>
+    </select>
+</div>
                         <label class="checkbox-label"><input id="newQuizActive" type="checkbox" checked> Active quiz</label>
                         <button class="btn btn-primary" type="submit">Create Quiz</button>
                     </form>

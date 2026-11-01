@@ -4,12 +4,12 @@
 
 // Demo Firebase configuration (replace with your actual config)
 const firebaseConfig = {
-    apiKey: "AIzaSyDemoKey-ReplaceWithActualKey",
-    authDomain: "exam-portal-demo.firebaseapp.com",
-    projectId: "exam-portal-demo",
-    storageBucket: "exam-portal-demo.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:demo"
+    apiKey: "AIzaSyDwaAymKKEsme-24PUcyY4CganrxtvbB1Q",
+    authDomain: "quiz-integrity-guard.firebaseapp.com",
+    projectId: "quiz-integrity-guard",
+    storageBucket: "quiz-integrity-guard.firebasestorage.app",
+    messagingSenderId: "212456178721",
+    appId: "1:212456178721:web:c23e8ae0ad9ab26f514f60"
 };
 
 // Initialize Firebase with error handling

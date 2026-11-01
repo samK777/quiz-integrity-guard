@@ -39,7 +39,13 @@ app.use("/api/attempts", attemptRoutes);
 app.use("/api/batches", batchRoutes);
 
 app.use((err, req, res, next) => {
-    console.error("Request error:", err.message);
+    console.error("Request error:", {
+    message: err.message,
+    code: err.code,
+    detail: err.detail,
+    constraint: err.constraint,
+    stack: err.stack
+});
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Request body must be valid JSON." });
     if (err.type === "entity.too.large") return res.status(413).json({ error: "Request body is too large." });
     return res.status(500).json({ error: "An unexpected server error occurred." });

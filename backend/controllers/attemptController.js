@@ -29,16 +29,36 @@ async function startAttempt(req, res) {
         // Serializing starts for a student keeps attempt_number unique under concurrent requests.
         await client.query("SELECT id FROM users WHERE id = $1 FOR UPDATE", [req.user.id]);
         const quizResult = await client.query(
-            `SELECT id, title, duration_minutes FROM quizzes
-             WHERE id = $1 AND is_active = TRUE FOR SHARE`,
-            [quizId]
-        );
+    `SELECT id, title, duration_minutes, audience_mode
+     FROM quizzes
+     WHERE id = $1 AND is_active = TRUE
+     FOR SHARE`,
+    [quizId]
+);
         const quiz = quizResult.rows[0];
+
         if (!quiz) {
             await client.query("ROLLBACK");
             transactionOpen = false;
             return res.status(404).json({ error: "Active quiz not found." });
         }
+        if (quiz.audience_mode === "batch") {
+    const invitationResult = await client.query(
+        `SELECT id
+         FROM quiz_invitations
+         WHERE quiz_id = $1
+           AND student_id = $2
+           AND state = 'invited'
+         LIMIT 1`,
+        [quizId, req.user.id]
+    );
+
+    if (invitationResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return res.status(404).json({ error: "Active quiz not found." });
+    }
+}
 
         const questionCount = await client.query("SELECT COUNT(*)::int AS total FROM questions WHERE quiz_id = $1", [quizId]);
         if (questionCount.rows[0].total === 0) {

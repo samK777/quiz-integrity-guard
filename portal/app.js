@@ -15,6 +15,7 @@ const AppState = {
     backendActivities: [],
     socketActivities: [],
     monitoringAttempts: [],
+    teacherBatches: [],
     selectedBatchId: null,
     batchInviteUrl: null
 };
@@ -187,6 +188,7 @@ function setupEventListeners() {
     document.getElementById('createQuizForm').addEventListener('submit', handleCreateQuiz);
     document.getElementById('addQuestionForm').addEventListener('submit', handleAddQuestion);
     document.getElementById('addQuestionOption').addEventListener('click', () => addQuestionOptionRow());
+    document.getElementById('teacherQuizList').addEventListener('click', handleTeacherQuizAction);
     document.getElementById('attemptSearch').addEventListener('input', renderMonitoringTable);
     document.getElementById('attemptStatusFilter').addEventListener('change', renderMonitoringTable);
     document.getElementById('monitoringTableBody').addEventListener('click', event => {
@@ -320,14 +322,14 @@ function loadStudentDashboard() {
     loadStudentBatchJoinRequests();
 }
 
-function loadTeacherDashboard() {
+async function loadTeacherDashboard() {
     const user = AppState.currentUser;
     const name = user.name || user.email;
     document.getElementById('teacherName').textContent = name;
     document.getElementById('teacherEmailDisplay').textContent = user.email;
     document.getElementById('teacherAvatar').textContent = name.charAt(0).toUpperCase();
-    loadTeacherBatches();
-    loadTeacherQuizzes();
+    await loadTeacherBatches();
+    await loadTeacherQuizzes();
     startTeacherMonitoring();
 }
 
@@ -336,6 +338,7 @@ async function loadTeacherBatches() {
     list.innerHTML = '<p>Loading batches…</p>';
     try {
         const { batches } = await backendRequest('/api/batches');
+        AppState.teacherBatches = batches;
         if (!batches.length) {
             list.innerHTML = '<p class="empty-state">No batches yet. Create one to organize students.</p>';
             AppState.selectedBatchId = null;
@@ -675,18 +678,184 @@ async function loadTeacherQuizzes() {
         const { quizzes } = await backendRequest('/api/quizzes/manage');
         const select = document.getElementById('teacherQuizSelect');
         const previous = select.value;
+
         select.innerHTML = '<option value="">Select a quiz</option>' + quizzes.map(quiz =>
             `<option value="${Number(quiz.id)}">${escapeHtml(quiz.title)}${quiz.is_active ? '' : ' (inactive)'}</option>`
         ).join('');
+
         if (quizzes.some(quiz => String(quiz.id) === previous)) select.value = previous;
-        document.getElementById('teacherQuizList').innerHTML = quizzes.length ? quizzes.map(quiz => `
-            <div class="attempt-item"><div class="attempt-info"><h4>${escapeHtml(quiz.title)}</h4><p>${Number(quiz.duration_minutes)} min · ${Number(quiz.question_count)} questions · ${quiz.is_active ? 'Active' : 'Inactive'}</p></div></div>
-        `).join('') : '<p>No quizzes yet. Create one above.</p>';
+
+        const batchOptions = AppState.teacherBatches.map(batch =>
+            `<option value="${Number(batch.id)}">${escapeHtml(batch.name)}</option>`
+        ).join('');
+
+        document.getElementById('teacherQuizList').innerHTML = quizzes.length
+            ? quizzes.map(quiz => {
+                const quizId = Number(quiz.id);
+                const assignedBatches = quiz.assigned_batches || [];
+
+                return `
+                    <article class="attempt-item" data-quiz-card="${quizId}">
+                        <div class="attempt-info">
+                            <h4>${escapeHtml(quiz.title)}</h4>
+                            <p>${Number(quiz.duration_minutes)} min · ${Number(quiz.question_count)} questions · ${quiz.is_active ? 'Active' : 'Inactive'}</p>
+                        </div>
+
+                        ${quiz.audience_mode === 'batch' ? `
+                            <div class="quiz-audience-controls">
+                                <h4>Assigned batches</h4>
+                                <p>${assignedBatches.length
+                                    ? assignedBatches.map(batch => escapeHtml(batch.name)).join(', ')
+                                    : 'No batches assigned yet.'}</p>
+
+                                <label for="quiz-batches-${quizId}">Add batches</label>
+                                <select id="quiz-batches-${quizId}" multiple data-quiz-batch-select>
+                                    ${batchOptions}
+                                </select>
+
+                                <button type="button" class="btn btn-outline btn-small"
+                                    data-quiz-action="assign-batches" data-quiz-id="${quizId}">
+                                    Add selected batches
+                                </button>
+
+                                <div class="quiz-invitation-actions">
+                                    <button type="button" class="btn btn-outline btn-small"
+                                        data-quiz-action="refresh-invitations" data-quiz-id="${quizId}">
+                                        Refresh invitations
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-small"
+                                        data-quiz-action="view-invitations" data-quiz-id="${quizId}">
+                                        View invitations
+                                    </button>
+                                </div>
+
+                                <div data-quiz-invitations aria-live="polite"></div>
+                            </div>
+                        ` : ''}
+                    </article>
+                `;
+            }).join('')
+            : '<p>No quizzes yet. Create one above.</p>';
+
     } catch (error) {
         document.getElementById('teacherQuizList').textContent = error.message;
     }
 }
+async function handleTeacherQuizAction(event) {
+    const button = event.target.closest('[data-quiz-action]');
+    if (!button) return;
 
+    const quizId = Number(button.dataset.quizId);
+    const action = button.dataset.quizAction;
+
+    if (!Number.isSafeInteger(quizId) || quizId <= 0) return;
+
+    button.disabled = true;
+
+    try {
+        if (action === 'assign-batches') {
+            const card = button.closest('[data-quiz-card]');
+            const select = card.querySelector('[data-quiz-batch-select]');
+            const batchIds = Array.from(select.selectedOptions).map(option => Number(option.value));
+
+            if (!batchIds.length) {
+                showToast('error', 'Select at least one batch.');
+                return;
+            }
+
+            const result = await backendRequest(`/api/quizzes/${quizId}/batches`, {
+                method: 'PUT',
+                body: JSON.stringify({ batch_ids: batchIds })
+            });
+
+            showToast('success', result.message || 'Batches assigned successfully.');
+            await loadTeacherQuizzes();
+
+        } else if (action === 'refresh-invitations') {
+            const result = await backendRequest(`/api/quizzes/${quizId}/invitations/refresh`, {
+                method: 'POST'
+            });
+
+            showToast('success', result.message || 'Invitations refreshed.');
+            await loadQuizInvitations(quizId);
+
+        } else if (action === 'view-invitations') {
+            await loadQuizInvitations(quizId);
+
+        } else if (action === 'revoke-invitation') {
+            const invitationId = Number(button.dataset.invitationId);
+            if (!Number.isSafeInteger(invitationId) || invitationId <= 0) return;
+
+            if (!confirm('Revoke this invitation? Existing attempts will not be interrupted.')) return;
+
+            await backendRequest(`/api/quizzes/${quizId}/invitations/${invitationId}`, {
+                method: 'DELETE'
+            });
+
+            showToast('success', 'Invitation revoked.');
+            await loadQuizInvitations(quizId);
+        }
+    } catch (error) {
+        showToast('error', error.message);
+    } finally {
+        button.disabled = false;
+    }
+}
+async function loadQuizInvitations(quizId) {
+    const card = document.querySelector(`[data-quiz-card="${quizId}"]`);
+    const panel = card?.querySelector('[data-quiz-invitations]');
+
+    if (!panel) return;
+
+    panel.innerHTML = '<p>Loading invitations…</p>';
+
+    try {
+        const { invitations } = await backendRequest(
+            `/api/quizzes/${quizId}/invitations`
+        );
+
+        if (!invitations.length) {
+            panel.innerHTML = '<p class="empty-state">No invitations found for this quiz.</p>';
+            return;
+        }
+
+        panel.innerHTML = invitations.map(invitation => {
+            const batches = (invitation.source_batches || [])
+                .map(batch => escapeHtml(batch.name))
+                .join(', ') || '—';
+
+            const canRevoke = invitation.state === 'invited';
+
+            return `
+                <article class="attempt-item">
+                    <div class="attempt-info">
+                        <h4>${escapeHtml(invitation.student_name || 'Student')}</h4>
+                        <p>${escapeHtml(invitation.student_email || '')}</p>
+                        <p>Status: ${escapeHtml(invitation.state)}</p>
+                        <p>Batches: ${batches}</p>
+                        <p>
+                            Attempts: ${Number(invitation.attempt_count || 0)}
+                            · Completed: ${Number(invitation.completed_count || 0)}
+                            · In progress: ${Number(invitation.in_progress_count || 0)}
+                            · Auto-submitted: ${Number(invitation.auto_submitted_count || 0)}
+                        </p>
+                    </div>
+                    ${canRevoke ? `
+                        <button type="button"
+                            class="btn btn-outline btn-small"
+                            data-quiz-action="revoke-invitation"
+                            data-quiz-id="${quizId}"
+                            data-invitation-id="${Number(invitation.invitation_id)}">
+                            Revoke
+                        </button>
+                    ` : ''}
+                </article>
+            `;
+        }).join('');
+    } catch (error) {
+        panel.innerHTML = `<p class="error-text">${escapeHtml(error.message)}</p>`;
+    }
+}
 async function handleCreateQuiz(e) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -699,6 +868,7 @@ async function handleCreateQuiz(e) {
         const { quiz } = await backendRequest('/api/quizzes', {
             method: 'POST',
             body: JSON.stringify({
+                audience_mode: document.getElementById('newQuizAudience').value,
                 title: document.getElementById('newQuizTitle').value.trim(),
                 description: document.getElementById('newQuizDescription').value.trim() || null,
                 duration_minutes: Number(document.getElementById('newQuizDuration').value),
@@ -707,6 +877,7 @@ async function handleCreateQuiz(e) {
         });
         form.reset();
         document.getElementById('newQuizDuration').value = '15';
+        document.getElementById('newQuizAudience').value = 'global';
         document.getElementById('newQuizActive').checked = true;
         await loadTeacherQuizzes();
         document.getElementById('teacherQuizSelect').value = String(quiz.id);

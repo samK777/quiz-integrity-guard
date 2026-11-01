@@ -17,6 +17,7 @@ function createHarness(backendRequest) {
         newQuizTitle: { value: "Biology" },
         newQuizDescription: { value: "Cell structure" },
         newQuizDuration: { value: "40" },
+        newQuizAudience: { value: "global" },
         newQuizActive: { checked: true },
         teacherQuizSelect: { value: "" }
     };
@@ -65,11 +66,13 @@ test("teacher quiz form resets and selects the created quiz after the async requ
         title: "Biology",
         description: "Cell structure",
         duration_minutes: 40,
+        audience_mode: "global",
         is_active: true
     });
     assert.equal(harness.wasReset(), true);
     assert.equal(harness.values.teacherQuizSelect.value, "73");
     assert.equal(harness.values.newQuizDuration.value, "15");
+    assert.equal(harness.values.newQuizAudience.value, "global");
     assert.equal(harness.state.loaded, 1);
     assert.deepEqual(harness.state.toasts, [["success", "Quiz created. Add its questions below."]]);
     assert.equal(harness.button.disabled, false);

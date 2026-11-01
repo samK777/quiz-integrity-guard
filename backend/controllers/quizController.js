@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const { publishAttemptAutoSubmitted } = require("../realtime/events");
+const { validateAudienceMode } = require("../services/quizAudience");
 
 const MAX_INT32 = 2147483647;
 
@@ -11,12 +12,13 @@ function parseQuizId(rawId) {
 
 function validQuizInput(body) {
     if (!body || typeof body !== "object" || Array.isArray(body)) return false;
-    const { title, description, duration_minutes, is_active } = body;
+    const { title, description, duration_minutes, is_active, audience_mode } = body;
     return typeof title === "string" && title.trim().length >= 1 && title.trim().length <= 200 &&
         (description === undefined || description === null ||
             (typeof description === "string" && description.length <= 5000)) &&
         Number.isInteger(duration_minutes) && duration_minutes >= 1 && duration_minutes <= 1440 &&
-        (is_active === undefined || typeof is_active === "boolean");
+        (is_active === undefined || typeof is_active === "boolean") &&
+        (audience_mode === undefined || validateAudienceMode(audience_mode) !== null);
 }
 
 function validQuestionInput(body) {
@@ -29,24 +31,49 @@ function validQuestionInput(body) {
 }
 
 async function listActiveQuizzes(req, res) {
+    // Students see global quizzes plus any batch-targeted quiz they have an active invitation for.
     const result = await pool.query(
-        `SELECT q.id, q.title, q.description, q.duration_minutes, q.is_active, q.created_at,
+        `SELECT q.id, q.title, q.description, q.duration_minutes, q.is_active,
+                q.created_at, q.audience_mode,
                 COUNT(question.id)::int AS question_count
          FROM quizzes q
          LEFT JOIN questions question ON question.quiz_id = q.id
          WHERE q.is_active = TRUE
+           AND (
+               q.audience_mode = 'global'
+               OR EXISTS (
+                   SELECT 1 FROM quiz_invitations qi
+                   WHERE qi.quiz_id = q.id
+                     AND qi.student_id = $1
+                     AND qi.state = 'invited'
+               )
+           )
          GROUP BY q.id
-         ORDER BY q.created_at DESC NULLS LAST, q.id DESC`
+         ORDER BY q.created_at DESC NULLS LAST, q.id DESC`,
+        [req.user.id]
     );
     return res.json({ quizzes: result.rows });
 }
 
 async function listTeacherQuizzes(req, res) {
     const result = await pool.query(
-        `SELECT q.id, q.title, q.description, q.duration_minutes, q.is_active, q.created_at,
-                COUNT(question.id)::int AS question_count
+        `SELECT q.id, q.title, q.description, q.duration_minutes, q.is_active,
+                q.created_at, q.audience_mode,
+                COUNT(DISTINCT question.id)::int AS question_count,
+                COUNT(DISTINCT qb.batch_id)::int  AS batch_count,
+                COALESCE(
+                    (SELECT json_agg(
+                        json_build_object('id', b.id, 'name', b.name)
+                        ORDER BY b.name
+                    )
+                     FROM quiz_batches qb2
+                     JOIN batches b ON b.id = qb2.batch_id
+                     WHERE qb2.quiz_id = q.id),
+                    '[]'::json
+                ) AS assigned_batches
          FROM quizzes q
          LEFT JOIN questions question ON question.quiz_id = q.id
+         LEFT JOIN quiz_batches qb    ON qb.quiz_id = q.id
          GROUP BY q.id
          ORDER BY q.created_at DESC NULLS LAST, q.id DESC`
     );
@@ -57,10 +84,23 @@ async function getActiveQuiz(req, res) {
     const quizId = parseQuizId(req.params.id);
     if (quizId === null) return res.status(400).json({ error: "Quiz ID must be a positive integer." });
 
+    // Enforce eligibility: batch-mode quizzes are only visible to invited students.
+    // Return 404 (same as inactive) to avoid leaking that the quiz exists.
     const quizResult = await pool.query(
-        `SELECT id, title, description, duration_minutes, is_active, created_at
-         FROM quizzes WHERE id = $1 AND is_active = TRUE LIMIT 1`,
-        [quizId]
+        `SELECT id, title, description, duration_minutes, is_active, created_at, audience_mode
+         FROM quizzes
+         WHERE id = $1 AND is_active = TRUE
+           AND (
+               audience_mode = 'global'
+               OR EXISTS (
+                   SELECT 1 FROM quiz_invitations qi
+                   WHERE qi.quiz_id = $1
+                     AND qi.student_id = $2
+                     AND qi.state = 'invited'
+               )
+           )
+         LIMIT 1`,
+        [quizId, req.user.id]
     );
     const quiz = quizResult.rows[0];
     if (!quiz) return res.status(404).json({ error: "Quiz not found." });
@@ -77,15 +117,15 @@ async function getActiveQuiz(req, res) {
 async function createQuiz(req, res) {
     if (!validQuizInput(req.body)) {
         return res.status(400).json({
-            error: "Provide a title (1–200 characters), duration_minutes (1–1440), optional description (up to 5000 characters), and optional boolean is_active."
+            error: "Provide a title (1–200 characters), duration_minutes (1–1440), optional description (up to 5000 characters), optional boolean is_active, and optional audience_mode ('global' or 'batch')."
         });
     }
-    const { title, description = null, duration_minutes, is_active = true } = req.body;
+    const { title, description = null, duration_minutes, is_active = true, audience_mode = "global" } = req.body;
     const result = await pool.query(
-        `INSERT INTO quizzes (title, description, duration_minutes, is_active)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, title, description, duration_minutes, is_active, created_at`,
-        [title.trim(), description, duration_minutes, is_active]
+        `INSERT INTO quizzes (title, description, duration_minutes, is_active, audience_mode)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, title, description, duration_minutes, is_active, audience_mode, created_at`,
+        [title.trim(), description, duration_minutes, is_active, audience_mode]
     );
     return res.status(201).json({ quiz: result.rows[0] });
 }
@@ -181,4 +221,4 @@ async function addQuestion(req, res) {
     }
 }
 
-module.exports = { listActiveQuizzes, listTeacherQuizzes, getActiveQuiz, createQuiz, addQuestion };
+module.exports = { listActiveQuizzes, listTeacherQuizzes, getActiveQuiz, createQuiz, addQuestion, validQuizInput };
